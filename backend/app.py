@@ -1,54 +1,25 @@
-from flask import Flask
-import psycopg2
+from flask import Flask,request
+
+from services.dns import get_dns_records
+from db.init import init_db
+from db.ops import create_investigation, get_investigation
 
 app = Flask(__name__)
 
-def init_db():
-    conn = psycopg2.connect(
-        database="reconx",
-        user="postgres",
-        password="postgres",
-        host="localhost",
-        port="5432"
-    )
 
-    cur = conn.cursor()
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS investigations (
-            id SERIAL PRIMARY KEY,
-            target VARCHAR(255) NOT NULL,
-            status VARCHAR(20) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            completed_at TIMESTAMP
-        );
-        CREATE TABLE IF NOT EXISTS dns_records (
-            id SERIAL PRIMARY KEY,
-            investigation_id INT NOT NULL,
-            record_type VARCHAR(20) NOT NULL,
-            value TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-            FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS certificates (
-            id SERIAL PRIMARY KEY,
-            investigation_id INT NOT NULL,
-            issuer VARCHAR(255) NOT NULL,
-            valid_from TIMESTAMP,
-            valid_to TIMESTAMP,
-            FOREIGN KEY (investigation_id) REFERENCES investigations(id) ON DELETE CASCADE
-        );
-        
-    """)
-
-    conn.commit()
-    cur.close()
-    conn.close()
 init_db()
-@app.route("/api/")
-def home():
-    return {"message": "ReconX API"}
+@app.route('/api/investigations/<int:id>', methods=['GET'])
+def handle_get(id):
+    return get_investigation(id)
 
+@app.route('/api/investigations', methods=['POST'])
+def handle_post():
+    data=request.get_json
+    target=data.get('target')
+    return create_investigation(target)
+
+@app.route('/api/')
+def home():
+    return {'hello':'world'}
 if __name__ == "__main__":
     app.run(debug=True)
